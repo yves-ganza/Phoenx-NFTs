@@ -9,7 +9,7 @@ import OpenSeaLink from "./components/openSeaLink";
 // Constants
 const TWITTER_HANDLE = 'lebon_yg'
 const TWITTER_LINK = `https://twitter.com/${TWITTER_HANDLE}`
-const CONTRACT_ADDRESS = '0x28963016F0971cd0CA0f0Bf0Cac29A4576FAB8a2'
+const CONTRACT_ADDRESS = '0x78C3f9f89CE831c54D25D3d68991706Bc549dC62'
 const OPENSEA_LINK = `https://testnets.opensea.io/assets/${CONTRACT_ADDRESS}/`
 
 const App = () => {
@@ -44,7 +44,6 @@ const App = () => {
       const account = accounts[0]
       console.log('Found an authorized account: ', account)
       setCurrentAccount(account)
-      await setupEventListener()
     }
     else {
       console.log('No authorized account found!')
@@ -65,7 +64,6 @@ const App = () => {
       setCurrentAccount(accounts[0])
       setStatus({error: false, text: 'Connected'})
       console.log('Connected account: ', accounts[0])
-      await setupEventListener()
     }catch (e) {
       console.log(e)
       setStatus({error: true, text: 'Access to wallet failed!'})
@@ -74,27 +72,14 @@ const App = () => {
   }
 
   //Listen to contract event
-  const setupEventListener = async () => {
+  const setupEventListener = async (connectedContract) => {
 
     try {
-
-      const { ethereum } = window
-
-      if (ethereum) {
-
-        const provider = new ethers.providers.Web3Provider(ethereum)
-        const signer = provider.getSigner()
-        const connectedContract = new ethers.Contract(CONTRACT_ADDRESS, myEpicNft.abi, signer)
-
         connectedContract.on('NewEpicNFTMinted',(from, tokenId, mintCount) => {
           console.log('From: ', from, ' - Id: ', tokenId.toNumber())
           setMintCount(mintCount.toNumber())
           setLink(`${OPENSEA_LINK + tokenId.toNumber()}`)
         })
-
-      } else {
-        console.log("Ethereum object doesn't exist!");
-      }
     } catch (error) {
       console.log(error)
       setStatus({error: true, text: 'Oops! We are sorry for the error!'})
@@ -114,13 +99,14 @@ const App = () => {
         const signer = provider.getSigner()
         const connectedContract = new ethers.Contract(CONTRACT_ADDRESS, myEpicNft.abi, signer)
 
+        setupEventListener(connectedContract)
 
         console.log("Going to pop wallet now to pay gas...")
-        setStatus({error: false, text: 'Popping wallet for gas payment'})
+        setStatus({error: false, text: 'Authorizing wallet for gas payment'})
         let nftTxn = await connectedContract.makeAnEpicNFT()
 
-        setStatus(prevState => ({...prevState, text: 'Mining please wait...'}))
-        console.log("Mining...please wait.")
+        setStatus(prevState => ({...prevState, text: 'Minting please wait...'}))
+        console.log("Minting...please wait.")
         await nftTxn.wait();
 
         console.log(`Mined, see transaction: https://rinkeby.etherscan.io/tx/${nftTxn.hash}`)
@@ -136,7 +122,10 @@ const App = () => {
   }
 
   useEffect(() => {
-    checkIfWalletIsConnected()
+    let isMounted = true
+    // checkIfWalletIsConnected()
+    isMounted && connectWallet()
+    return () => {isMounted = false}
   }, [])
 
   // Render Methods
@@ -147,7 +136,7 @@ const App = () => {
   );
 
   const renderMintButton  = () => (
-      <button onClick={askContractToMintNft} className="cta-button mint-button">Mint NFT</button>
+      <button onClick={() => askContractToMintNft()} className="cta-button mint-button">Mint NFT</button>
   )
 
   const renderMintCount = () => (
@@ -173,14 +162,15 @@ const App = () => {
           {
             (status.error || status.text) ?
             <div className='status-modal'>
-              <Status {...status}/>
+              <Status error={status.error} text={status.text}/>
             </div> : ''
           }
           {
             link ?
                 <OpenSeaLink
-                  show={true}
+                  show={link ? true : false}
                   link={link}
+                  onHide={() => setLink('')}
                 /> : ''
           }
         </div>

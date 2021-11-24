@@ -16,7 +16,7 @@ export default function OpenSeaLink(props) {
             </Modal.Header>
             <Modal.Body>
                 <h4>Check it out on OpenSea</h4>
-                <a href={props.link} target='_blank'>View Your NFT</a>
+                <a href={props.link} rel='noreferrer' target='_blank'>View Your NFT</a>
             </Modal.Body>
         </Modal>
     );
